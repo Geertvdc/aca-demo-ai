@@ -1,4 +1,7 @@
+
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,17 +14,16 @@ builder.Services.AddProblemDetails();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+
 #pragma warning disable SKEXP0070
 builder.Services.AddOllamaChatCompletion(
     modelId: "phi3",
     endpoint: new Uri("http://localhost:11434")
 );
-
-builder.Services.AddTransient((serviceProvider)=> {
-    return new Kernel(serviceProvider);
-});
+builder.Services.AddTransient((serviceProvider)=> new Kernel(serviceProvider));
 
 var app = builder.Build();
+
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
@@ -31,27 +33,37 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// string[] summaries = ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];
+// Minimal API for chat completion
+app.MapPost("/v1/chat/completions", async ([FromServices] Kernel kernel, [FromBody] ChatCompletionRequest req) =>
+{
+    if (req.Messages is null || req.Messages.Count == 0)
+    return Results.BadRequest("messages are required");
 
-// app.MapGet("/weatherforecast", () =>
-// {
-//     var forecast = Enumerable.Range(1, 5).Select(index =>
-//         new WeatherForecast
-//         (
-//             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-//             Random.Shared.Next(-20, 55),
-//             summaries[Random.Shared.Next(summaries.Length)]
-//         ))
-//         .ToArray();
-//     return forecast;
-// })
-// .WithName("GetWeatherForecast");
+    var chat = kernel.GetRequiredService<IChatCompletionService>();
+
+    var history = new ChatHistory();
+    foreach (var m in req.Messages)
+    {
+        switch (m.Role.ToLowerInvariant())
+        {
+            case "user":       history.AddUserMessage(m.Content);       break; // ✅
+            case "assistant":  history.AddAssistantMessage(m.Content);  break;
+            case "system":     history.AddSystemMessage(m.Content);     break;
+            default:           continue; // ignore or handle 'tool', etc.
+        }
+    }
+
+    var result = await chat.GetChatMessageContentAsync(history);
+    return Results.Ok(new { content = result.Content });
+});
 
 app.MapDefaultEndpoints();
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public record ChatMessage(string Role, string Content);
+public record ChatCompletionRequest(
+    string Model,
+    List<ChatMessage> Messages,
+    double Temperature = 0.7
+);
