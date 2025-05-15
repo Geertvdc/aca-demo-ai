@@ -1,0 +1,21 @@
+### 1 – Smoke test: print a string
+POST http://localhost:5597/exec
+Content-Type: text/plain
+
+print("Hello from ACA Dynamic Sessions!")
+
+### 2 – Do some quick math
+POST http://localhost:5597/exec
+Content-Type: text/plain
+
+import json, math
+result = math.sqrt(42)
+print(json.dumps({"sqrt42": result}))
+
+### 3 – Reuse a session (keeps variables between calls)
+@session = chat123            
+POST http://localhost:5597/exec?id={{session}}
+Content-Type: text/plain
+
+# session 'chat123' still knows 'result'
+print (result * 10)
