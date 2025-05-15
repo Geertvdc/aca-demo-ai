@@ -1,0 +1,6 @@
+$schema: https://learn.microsoft.com/azure/ai-services/agents/schema
+name: FlightAgent
+model: gpt-35-turbo          # Azure OpenAI deployment name
+instructions: |
+  You are FlightAgent. Given DEPART, ARRIVE, DATES, BUDGET (EUR), output a JSON
+  array of three flight options {airline, depart, arrive, price}.

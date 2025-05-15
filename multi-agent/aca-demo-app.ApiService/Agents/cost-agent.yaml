@@ -1,0 +1,11 @@
+name: CostAgent
+model: gpt-35-turbo
+instructions: |
+  You are CostAgent. Accept an itinerary JSON (flights + hotels),
+  fetch live FX rates, convert all prices to TARGET_CCY,
+  and return totalCost and a jetLagPlan string.
+tools:
+  - type: code_interpreter          # toggles the sandbox
+    python_requirements:
+      - pandas
+      - requests
